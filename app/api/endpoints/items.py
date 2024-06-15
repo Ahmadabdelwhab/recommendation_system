@@ -1,26 +1,50 @@
 from fastapi import APIRouter, HTTPException
 from app.models.item import Item
-from app.services.embeddings import generate_embedding
-from app.services.recommendation import get_recommendations
-from app.db.recommendationDB import collection
+from app.models.item import UpdatedItem
+from app.models.recommendation import Recommendations
+from app.db.recommendationDB import RecommendationDB
 from typing import List
 
 router = APIRouter()
 
-items_db={}
-
-@router.post("/add_item/")
+######post######
+@router.post("/item/")
 async def add_item(item: Item):
-        embedding = generate_embedding(item.description)
-        item.embedding = embedding
-        items_db[item.id] = item
-        collection.insert(item.id, embedding)
-        return {"message": "Item added successfully", "item_id": item.id}
+        db = RecommendationDB()
+        ret = db.add_item( "my_items", item.__dict__)
+        if not ret:
+                raise HTTPException(status_code=409, detail="Item already exists")
+        return item
 
-@router.get("/recommend/{item_id}")
-async def recommend(item_id: str, top_k: int = 5):
-        if item_id not in items_db:
-                raise HTTPException(status_code=404, detail="Item not found")
-        embedding = items_db[item_id].embedding
-        recommendations = get_recommendations(embedding, top_k, items_db, item_id)
-        return {"recommendations": recommendations}
+
+#######get######
+@router.get("/item/id/{item_id}")
+async def get_recommendation_by_id(item_id: str , limit:int =10):
+        limit = max(1,limit)
+        db = RecommendationDB()
+        ret = db.get_recommendations_by_id( "my_items", item_id , k_recommendations=limit)
+        if not ret:
+                raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")
+        return Recommendations(**ret)
+
+@router.get("/item/text/{text}")
+async def get_recommendation_by_id(text: str , limit:int =10):
+        limit = max(1,limit)
+        db = RecommendationDB()
+        ret = db.get_recommendations_by_text( "my_items", text , k_recommendations=limit)
+        return Recommendations(**ret)
+
+@router.patch("/item/{item_id}")
+async def update_item(item_id:str , updated_item: UpdatedItem):
+        db = RecommendationDB()
+        ret = db.update_embeddings_by_id( "my_items", item_id, update_item.__dict__)
+        if not ret:
+                raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")
+        return ret
+@router.delete("/item/{item_id}")
+async def update_item(item_id:str , updated_item: UpdatedItem):
+        db = RecommendationDB()
+        ret = db.delete_embeddings_by_id( "my_items", item_id)
+        if not ret:
+                raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")
+        return ret

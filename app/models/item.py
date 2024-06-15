@@ -4,4 +4,8 @@ from typing import List
 class Item(BaseModel):
         id: str
         description: str
-        embedding: List[float] = []
+        name:str
+class UpdatedItem(BaseModel):
+        description: str
+        name:str
+
