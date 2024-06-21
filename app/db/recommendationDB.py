@@ -1,6 +1,9 @@
 import chromadb 
 from chromadb.utils import embedding_functions 
 from typing import Dict , List
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 PATH = "app/db"
 # todo
@@ -9,9 +12,9 @@ PATH = "app/db"
 # --- 3. get recommendations by itemID
 # --- 4. get reccomendations by text 
 # --- 5. add item to collection
-# -- 5. update empeddings by id
-# -- 6. Delete embeddings by id
-# -- 7. Delete all embeddings
+# --- 5. update empeddings by id
+# --- 6. Delete embeddings by id
+
 class RecommendationDB():
     def __init__(self):
         """
@@ -92,7 +95,7 @@ class RecommendationDB():
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
             item = collection.get(ids=[item_id],
                                 include=["embeddings"])
-            print(item)
+            
             if not self.check_id_exists(collection_name, item_id):
                 return None
             embedding = item["embeddings"]
@@ -106,6 +109,7 @@ class RecommendationDB():
                 "ids": items_ids,
                 "distances": distances
             }
+            print("success")
             return recommendations
         except Exception as e:
             print(e)
@@ -121,7 +125,7 @@ class RecommendationDB():
         Returns:
             List[str] | None: A list of recommended item IDs, or None if no recommendations are found.
         """
-        print(text)
+        print("text : " , text)
         try:
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
             results = collection.query(
@@ -129,7 +133,7 @@ class RecommendationDB():
                     n_results=k_recommendations)
             print(results)
             items_ids = results["ids"][0]
-            distances = results["distances"]
+            distances = results["distances"][0]
             recommendations = {
                 "ids": items_ids,
                 "distances": distances
