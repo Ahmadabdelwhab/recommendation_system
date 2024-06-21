@@ -2,5 +2,5 @@ fastapi
 uvicorn
 chromadb
 sentence-transformers
-pysqlite3
+pysqlite3-binary
         

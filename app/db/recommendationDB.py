@@ -1,9 +1,9 @@
-import chromadb 
-from chromadb.utils import embedding_functions 
-from typing import Dict , List
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import chromadb 
+from chromadb.utils import embedding_functions 
+from typing import Dict , List
 
 PATH = "app/db"
 # todo
