@@ -6,7 +6,7 @@ from app.db.recommendationDB import RecommendationDB
 from typing import List
 
 router = APIRouter()
-COLLECTION_NAME = "my_items"
+COLLECTION_NAME = "items"
 db = RecommendationDB()
 ######post######
 @router.post("/item/")
@@ -35,6 +35,8 @@ async def get_recommendation_by_id(text: str , limit:int =10):
 
 @router.patch("/item/{item_id}")
 async def update_item(item_id:str , updated_item: UpdatedItem):
+        print(updated_item.__dict__)
+        print(item_id)
         ret = db.update_embeddings_by_id( COLLECTION_NAME, item_id, updated_item.__dict__)
         if not ret:
                 raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")

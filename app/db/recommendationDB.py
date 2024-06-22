@@ -28,6 +28,9 @@ class RecommendationDB():
         """
         self.client = chromadb.PersistentClient(path="app/db")
         self.sentence_embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction("all-mpnet-base-v2")     
+        self.client.get_or_create_collection("items" , embedding_function=self.sentence_embedding_function , )
+        
+
     def compine(self, name:str , description:str) -> str:
         """
         Combines the name and description of an item.
@@ -56,26 +59,11 @@ class RecommendationDB():
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
             item = collection.get(ids=[item_id])
             print(item)
-            return bool(item["ids"])
+            print(len(item["ids"]))
+            return bool(len(item["ids"]))
         except Exception as e:
-            print(e)
-    def create_collection(self, collection_name:str , meta:Dict = None) ->None:
-        """
-        Creates a new collection in the database.
-
-        Args:
-            collection_name (str): The name of the collection to be created.
-            meta (Dict, optional): Additional metadata for the collection. Defaults to None.
-
-        Returns:
-            None
-
-        Raises:
-            chromadb.exceptions.CollectionAlreadyExistsError: If a collection with the same name already exists.
-        """
-        try:
-            self.client.create_collection(collection_name , metadata=meta , embedding_function=self.sentence_embedding_function)
-            print(f"Collection '{collection_name}' created successfully!")
+            print("error , " ,e)
+    
         except chromadb.exceptions.CollectionAlreadyExistsError:
             print(f"Collection '{collection_name}' already exists.")
 
@@ -187,7 +175,7 @@ class RecommendationDB():
             None
         """
         try:
-            if self.check_id_exists(collection_name, item_id):
+            if not self.check_id_exists(collection_name, item_id):
                 print(f"Item with ID '{item_id}' does not exist in collection '{collection_name}'. Skipping...")
                 return None
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
