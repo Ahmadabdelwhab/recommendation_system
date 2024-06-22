@@ -209,7 +209,7 @@ class RecommendationDB():
             None
         """
         try:
-            if self.check_id_exists(collection_name, item_id):
+            if not self.check_id_exists(collection_name, item_id):
                 print(f"Item with ID '{item_id}' does not exist in collection '{collection_name}'. delete failed...")
                 return None
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
@@ -217,20 +217,5 @@ class RecommendationDB():
             print(f"Embeddings deleted for item '{item_id}' in collection '{collection_name}' successfully!")
         except Exception as e:
             print(e)
-    def delete_all_embeddings(self, collection_name:str) -> None:
-        """
-        Deletes all embeddings in the collection.
-
-        Args:
-            collection_name (str): The name of the collection to update.
-
-        Returns:
-            None
-        """
-        try:
-            collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
-            collection.delete_all()
-            print(f"All embeddings deleted in collection '{collection_name}' successfully!")
-        except Exception as e:
-            print(e)
+    
 
