@@ -28,7 +28,7 @@ async def get_recommendation_by_id(item_id: str , limit:int =10):
 
 
 @router.get("/item/text/{text}")
-async def get_recommendation_by_id(text: str , limit:int =10):
+async def get_recommendation_by_text(text: str , limit:int =10):
         limit = max(1,limit)
         ret = db.get_recommendations_by_text( COLLECTION_NAME, text , k_recommendations=limit)
         return Recommendations(**ret)
@@ -42,7 +42,7 @@ async def update_item(item_id:str , updated_item: UpdatedItem):
                 raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")
         return ret
 @router.delete("/item/{item_id}")
-async def update_item(item_id:str):
+async def delete_item(item_id:str):
         ret = db.delete_embeddings_by_id( COLLECTION_NAME, item_id)
         if not ret:
                 raise HTTPException(status_code=404, detail=f"no item with {item_id} is found")

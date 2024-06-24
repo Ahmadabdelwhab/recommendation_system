@@ -179,16 +179,17 @@ class RecommendationDB():
                 print(f"Item with ID '{item_id}' does not exist in collection '{collection_name}'. Skipping...")
                 return None
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
-            item_description = updated_item["description"]
-            item_name = updated_item["name"]
+            old_item = collection.get(ids=[item_id])
+            print("old_item : " , old_item)
+            item_description = updated_item.get("description" , old_item["metadatas"][0]["description"])
+            
+            item_name = updated_item.get("name" , old_item["metadatas"][0]["name"])
             text = self.compine(item_name , item_description)
             collection.update(
                 ids=[item_id],
                 documents=[text]
             )
-            self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function).get()
             print(f"Embeddings updated for item '{item_id}' in collection '{collection_name}' successfully!")
-            
             new_item = collection.get(ids=[item_id])
             return {
                 "id": new_item["ids"][0],
@@ -215,6 +216,9 @@ class RecommendationDB():
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
             collection.delete(ids=[item_id])
             print(f"Embeddings deleted for item '{item_id}' in collection '{collection_name}' successfully!")
+            return {
+                "status" : "success"
+            }
         except Exception as e:
             print(e)
     
