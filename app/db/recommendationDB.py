@@ -1,19 +1,16 @@
+import os
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..' , "..")))
 import chromadb 
 from chromadb.utils import embedding_functions 
 from typing import Dict , List
-
+from dotenv import load_dotenv
+load_dotenv()
+GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
 PATH = "app/db"
-# todo
-# --- 1. Create data base initilization
-# --- 2. create database collections
-# --- 3. get recommendations by itemID
-# --- 4. get reccomendations by text 
-# --- 5. add item to collection
-# --- 5. update empeddings by id
-# --- 6. Delete embeddings by id
+
 
 class RecommendationDB():
     def __init__(self):
@@ -27,8 +24,8 @@ class RecommendationDB():
         - None
         """
         self.client = chromadb.PersistentClient(path="app/db")
-        self.sentence_embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction("all-mpnet-base-v2")     
-        self.client.get_or_create_collection("items" , embedding_function=self.sentence_embedding_function , )
+        self.sentence_embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=GOOGLE_API_KEY)   
+        self.client.get_or_create_collection("items" , embedding_function=self.sentence_embedding_function)
         
 
     def compine(self, name:str , description:str) -> str:
