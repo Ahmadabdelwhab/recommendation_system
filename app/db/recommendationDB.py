@@ -4,13 +4,23 @@ import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..' , "..")))
 import chromadb 
-from chromadb.utils import embedding_functions 
+import base64
+import io
+from PIL import Image
+from chromadb.utils import embedding_functions
+from chromadb.utils.data_loaders import ImageLoader
 from typing import Dict , List
 from dotenv import load_dotenv
-load_dotenv()
+from itertools import chain
+import numpy as np
+# load_dotenv("..env")
+ROBOFLOW_API_KEY=os.getenv("ROBOFLOW_API_KEY")
 GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
+SERVER_URL = os.getenv("SERVER_URL")
+META_DATA = {"hnsw:space":"cosine"}
+ITEM_COLLECTION_NAME="items"
+IMAGE_COLLECTION_NAME="images"
 PATH = "app/db"
-
 
 class RecommendationDB():
     def __init__(self):
@@ -24,8 +34,10 @@ class RecommendationDB():
         - None
         """
         self.client = chromadb.PersistentClient(path="app/db")
-        self.sentence_embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=GOOGLE_API_KEY)   
-        self.client.get_or_create_collection("items" , embedding_function=self.sentence_embedding_function)
+        self.sentence_embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=GOOGLE_API_KEY)  
+        self.image_embedding_function = embedding_functions.RoboflowEmbeddingFunction(api_key=ROBOFLOW_API_KEY ,api_url=SERVER_URL)
+        self.client.get_or_create_collection(ITEM_COLLECTION_NAME , embedding_function=self.sentence_embedding_function ,metadata=META_DATA)
+        self.client.get_or_create_collection(IMAGE_COLLECTION_NAME ,embedding_function= self.image_embedding_function ,data_loader=ImageLoader(), metadata=META_DATA)
         
 
     def compine(self, name:str , description:str) -> str:
@@ -41,6 +53,43 @@ class RecommendationDB():
         """
         compined_data = f"name: {name}, description:{description}"
         return compined_data
+    def check_recommendations_exist(self, collection_name:str, item_ids:List[str]) -> bool:
+        """
+        Checks if a list of item IDs exists in the collection.
+
+        Args:
+            collection_name (str): The name of the collection to check.
+            item_ids (List[str]): The IDs of the items to check.
+
+        Returns:
+            bool: True if all item IDs exist, False otherwise.
+        """
+        try:
+            if not item_ids:
+                raise ValueError("No item IDs provided.")
+            collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
+            items = collection.get(ids=item_ids)
+            return bool(items["ids"])
+        except Exception as e:
+            print(e)
+    def convert_base64_to_numpy(self, base64_str:str) -> np.ndarray:
+        """
+        Converts a base64 string to a NumPy array.
+
+        Args:
+            base64_str (str): The base64 string to convert.
+
+        Returns:
+            np.ndarray: The NumPy array.
+        """
+        try:
+            base64_bytes = base64_str.encode("utf-8")
+            image_bytes = base64.b64decode(base64_bytes)
+            image = Image.open(io.BytesIO(image_bytes))
+            image_np = np.array(image)
+            return image_np
+        except Exception as e:
+            print(e)    
     def check_id_exists(self, collection_name:str, item_id:str) -> bool:
         """
         Checks if an item ID exists in the collection.
@@ -53,16 +102,13 @@ class RecommendationDB():
             bool: True if the item ID exists, False otherwise.
         """
         try:
+            print(item_id)
             collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
             item = collection.get(ids=[item_id])
             print(item)
-            print(len(item["ids"]))
             return bool(len(item["ids"]))
         except Exception as e:
             print("error , " ,e)
-    
-        except chromadb.exceptions.CollectionAlreadyExistsError:
-            print(f"Collection '{collection_name}' already exists.")
 
     def get_recommendations_by_id(self, collection_name:str , item_id:str, k_recommendations:int = 10) -> List[str] | None :
         """
@@ -77,12 +123,12 @@ class RecommendationDB():
             List[str] | None: A list of recommended item IDs, or None if no recommendations are found.
         """
         try:
-            collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
-            item = collection.get(ids=[item_id],
-                                include=["embeddings"])
             
             if not self.check_id_exists(collection_name, item_id):
                 return None
+            collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
+            item = collection.get(ids=[item_id],
+                                include=["embeddings"])
             embedding = item["embeddings"]
             results = collection.query(
                     query_embeddings=embedding,  
@@ -95,6 +141,37 @@ class RecommendationDB():
                 "distances": distances
             }
             print("success")
+            return recommendations
+        except Exception as e:
+            print(e)
+    def get_recommendations_by_ids(self , collection_name:str , item_ids:Dict[str,List[str]] , k_recommendations:int = 50) -> Dict[str,List[str]] | None:
+        """
+        Retrieves recommendations based on the given item IDs.
+
+        Args:
+            collection_name (str): The name of the collection to query.
+            k_recommendations (int): The number of recommendations to retrieve.
+            item_ids (List[str]): The IDs of the items to get recommendations for.
+
+        Returns:
+            List[str] | None: A list of recommended item IDs, or None if no recommendations are found.
+        """
+        try:
+            if not self.check_recommendations_exist(collection_name, item_ids["ids"]):
+                return None
+            collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
+            items = collection.get(ids=item_ids["ids"],
+                                include=["embeddings"])
+            recommendations_per_item = 10
+            embeddings = items["embeddings"]
+            results = collection.query(
+                    query_embeddings=embeddings,  
+                    n_results=recommendations_per_item)
+            all_ids =results["ids"]
+            unique_ids = list(set(chain.from_iterable(all_ids)) - set(item_ids["ids"]))  
+            recommendations = {
+                "ids": unique_ids[:min(600, k_recommendations)],
+            }
             return recommendations
         except Exception as e:
             print(e)
@@ -138,7 +215,8 @@ class RecommendationDB():
                 None
             """
             try:
-                
+                if self.check_id_exists(collection_name, item["id"]):
+                    return None
                 collection = self.client.get_collection(collection_name , embedding_function=self.sentence_embedding_function)
                 item_description = item["description"]
                 item_name = item["name"]
@@ -218,5 +296,57 @@ class RecommendationDB():
             }
         except Exception as e:
             print(e)
-    
+    def add_image(self , collection_name:str , image_item:Dict[str , str]) -> Dict[str , str]| None:
+        try:
+            if self.check_id_exists(collection_name, image_item["image_id"]):
+                print(f"Image with ID '{image_item['image_id']}' already exists in collection '{collection_name}'. Skipping...")
+                return None
+            
+            collection = self.client.get_collection(collection_name, embedding_function=self.image_embedding_function)
+            image_id = image_item["image_id"]
+            item_id = image_item["item_id"]
+            item_base64 = image_item["image_base64"]
+            converted_image = self.convert_base64_to_numpy(item_base64)
+            item_metadata = {
+                "item_id": item_id,
+                "image_id": image_id,
+                
+            }
+            collection.add(
+            images=[converted_image],
+            ids=[image_id],
+            metadatas=item_metadata
+            )
+            print(f"Image added to collection '{collection_name}' successfully!")
+            return image_item
+        except Exception as e:
+            print(e)
+    def get_image_recommendations(self,collection_name:str , image_base64:str , k_recommendations:int = 10) -> List[str] | None:
+        """
+        Retrieves similar images based on the given image.
+
+        Args:
+            image_path (str): The path to the image to get recommendations for.
+            k_recommendations (int): The number of recommendations to retrieve.
+
+        Returns:
+            List[str] | None: A list of recommended item IDs, or None if no recommendations are found.
+        """
+        try:
+            np_image = self.convert_base64_to_numpy(image_base64["image_base64"])
+            collection = self.client.get_collection(collection_name , embedding_function=self.image_embedding_function , data_loader=ImageLoader())
+            results = collection.query(
+                    query_images=[np_image],  
+                    n_results=k_recommendations)
+            print(results)
+            metadata = results["metadatas"][0]
+            ids_list = list({item["item_id"] for item in metadata})
+            limit = min(len(ids_list) , k_recommendations)
+            recommendations = {
+                "ids": ids_list[:limit]
+            }
+            print(recommendations)
+            return recommendations
+        except Exception as e:
+            print(e)
 

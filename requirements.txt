@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 chromadb
+inference-sdk
 google-generativeai
 pysqlite3-binary
         
