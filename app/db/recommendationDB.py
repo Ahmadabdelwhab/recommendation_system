@@ -335,14 +335,14 @@ class RecommendationDB():
             Optional[List[str]]: A list of recommended item IDs, or None if no recommendations are found.
         """
         try:
-            np_image = self.convert_base64_to_numpy(image_base64)
+            np_image = self.convert_base64_to_numpy(image_base64["image_base64"])
             collection = self.client.get_collection(collection_name, embedding_function=self.image_embedding_function, data_loader=ImageLoader())
             
             results = collection.query(
                 query_images=[np_image],  
                 n_results=k_recommendations
             )
-            print(results)
+            
             
             metadata = results["metadatas"][0]
             ids_list = [item["item_id"] for item in metadata]
