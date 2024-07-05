@@ -13,7 +13,7 @@ from typing import Dict , List
 from dotenv import load_dotenv
 from itertools import chain
 import numpy as np
-# load_dotenv("..env")
+load_dotenv("..env")
 ROBOFLOW_API_KEY=os.getenv("ROBOFLOW_API_KEY")
 GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
 SERVER_URL = os.getenv("SERVER_URL")
@@ -321,49 +321,47 @@ class RecommendationDB():
             return image_item
         except Exception as e:
             print(e)
-    from typing import List, Optional
-import numpy as np
 
-def get_image_recommendations(self, collection_name: str, image_base64: str, k_recommendations: int = 10) -> Dict[str, List[str]] | None:
-    """
-    Retrieves similar images based on the given image.
+    def get_image_recommendations(self, collection_name: str, image_base64: str, k_recommendations: int = 10) -> Dict[str, List[str]] | None:
+        """
+        Retrieves similar images based on the given image.
 
-    Args:
-        collection_name (str): The name of the image collection.
-        image_base64 (str): The base64 encoded image to get recommendations for.
-        k_recommendations (int): The number of recommendations to retrieve.
+        Args:
+            collection_name (str): The name of the image collection.
+            image_base64 (str): The base64 encoded image to get recommendations for.
+            k_recommendations (int): The number of recommendations to retrieve.
 
-    Returns:
-        Optional[List[str]]: A list of recommended item IDs, or None if no recommendations are found.
-    """
-    try:
-        np_image = self.convert_base64_to_numpy(image_base64)
-        collection = self.client.get_collection(collection_name, embedding_function=self.image_embedding_function, data_loader=ImageLoader())
-        
-        results = collection.query(
-            query_images=[np_image],  
-            n_results=k_recommendations
-        )
-        print(results)
-        
-        metadata = results["metadatas"][0]
-        ids_list = [item["item_id"] for item in metadata]
-        distances = results["distances"][0]
-        
-        # Sorting the ids by distance and removing duplicates
-        combined_list = list(zip(ids_list, distances))
-        min_distance_dict = {}
-        for item_id, distance in combined_list:
-            if item_id not in min_distance_dict or distance < min_distance_dict[item_id]:
-                min_distance_dict[item_id] = distance
-        
-        sorted_items = sorted(min_distance_dict.items(), key=lambda x: x[1])
-        sorted_ids_list = [item[0] for item in sorted_items]
-        limit = min(len(sorted_ids_list), k_recommendations)
-        recommendations = {"ids":sorted_ids_list[:limit]}
-        print({"ids": recommendations})
-        
-        return recommendations
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+        Returns:
+            Optional[List[str]]: A list of recommended item IDs, or None if no recommendations are found.
+        """
+        try:
+            np_image = self.convert_base64_to_numpy(image_base64)
+            collection = self.client.get_collection(collection_name, embedding_function=self.image_embedding_function, data_loader=ImageLoader())
+            
+            results = collection.query(
+                query_images=[np_image],  
+                n_results=k_recommendations
+            )
+            print(results)
+            
+            metadata = results["metadatas"][0]
+            ids_list = [item["item_id"] for item in metadata]
+            distances = results["distances"][0]
+            
+            # Sorting the ids by distance and removing duplicates
+            combined_list = list(zip(ids_list, distances))
+            min_distance_dict = {}
+            for item_id, distance in combined_list:
+                if item_id not in min_distance_dict or distance < min_distance_dict[item_id]:
+                    min_distance_dict[item_id] = distance
+            
+            sorted_items = sorted(min_distance_dict.items(), key=lambda x: x[1])
+            sorted_ids_list = [item[0] for item in sorted_items]
+            limit = min(len(sorted_ids_list), k_recommendations)
+            recommendations = {"ids":sorted_ids_list[:limit]}
+            print({"ids": recommendations})
+            
+            return recommendations
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None

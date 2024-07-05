@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..' , "..")))
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from app.models.item import Item , UpdatedItem , Items ,ImageItem , Image_base64 
 from app.models.recommendation import Recommendations , ImageRecommendations
 from app.db.recommendationDB import RecommendationDB
@@ -56,6 +57,13 @@ async def get_recommendation_by_text(text: str , limit:int =10):
         limit = max(1,limit)
         ret = db.get_recommendations_by_text( COLLECTION_NAME, text , k_recommendations=limit)
         return Recommendations(**ret)
+@router.get("/dbfile")
+async def download_chroma():
+    file_path = "app/db/chroma.sqlite3"  # Specify the path to your file
+    if os.path.exists(file_path):
+        return FileResponse(path=file_path, filename="chroma.sqlite3", media_type="application/octet-stream")
+    else:
+        return {"error": "File not found"}
 
 @router.patch("/item/{item_id}")
 async def update_item(item_id:str , updated_item: UpdatedItem):
@@ -77,3 +85,4 @@ async def delete_image(image_id:str):
         if not ret:
                 raise HTTPException(status_code=404, detail=f"no image with {image_id} is found")
         return ret
+
